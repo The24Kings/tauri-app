@@ -3,9 +3,9 @@
     windows_subsystem = "windows"
 )]
 
-use std::sync::{Arc, Mutex};
-use tauri::State;
-
+use std::{sync::{Arc, Mutex}, time::Duration};
+use tauri::{State, Manager};
+use tokio::time::sleep;
 #[derive(Default)]
 struct Counter(Arc<Mutex<i32>>);
 
@@ -25,6 +25,20 @@ fn add_count(num: i32, counter: State<'_, Counter>) -> String {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            let app_handle = app.handle();
+
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    sleep(Duration::from_millis(2000)).await;
+
+                    println!("Sending backend-ping");
+                    app_handle.emit_all("backend-ping", "ping").unwrap();
+                }
+            });
+
+            Ok(())
+        })
         .manage(Counter(Default::default()))
         .invoke_handler(tauri::generate_handler![greet, add_count])
         .run(tauri::generate_context!())
